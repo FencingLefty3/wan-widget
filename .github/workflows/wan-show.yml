@@ -1,4 +1,4 @@
-name: WAN Show Wallpaper
+name: WAN Show WallpaperV2
 
 on:
   schedule:
@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  models: read
 
 jobs:
   update:
@@ -24,9 +23,7 @@ jobs:
 
       - name: Generate latest wallpaper
         env:
-          # No secret needed — the built-in GITHUB_TOKEN (scoped by the
-          # `models: read` permission above) authenticates GitHub Models.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DATA_FILE: ./docs/latest.json
         run: node scripts/generate.mjs
 
