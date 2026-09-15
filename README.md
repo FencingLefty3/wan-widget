@@ -16,17 +16,50 @@ and renders an iPhone-sized gradient wallpaper with the headline.
    feed (no API key needed) looking for a title containing "WAN Show".
 2. If it's a new video ID it hasn't processed before, it pulls the
    auto-captions via the `youtube-transcript` package.
-3. The transcript is sent to Gemini with a prompt asking for a short
-   headline + a summary paragraph, returned as JSON.
+3. The transcript is summarized by Groq (default) or Gemini (fallback) —
+   see "Choosing an LLM provider" below — returning a headline + paragraph
+   as JSON.
 4. `sharp` renders an SVG gradient + the headline as a PNG sized for an
    iPhone screen, and everything is saved to `./data`.
+
+## Choosing an LLM provider
+
+**GitHub Models (default for the free/Actions deploy, recommended)** —
+literally zero setup if you're using the GitHub Actions + Pages deploy
+below: it authenticates with the workflow's built-in `GITHUB_TOKEN`, so
+there's no signup, no key to generate, and no age-verification step at
+all. If you want to run it locally or on Railway instead, generate a
+Personal Access Token with the `models: read` scope at
+[github.com/settings/tokens](https://github.com/settings/personal-access-tokens)
+and set it as `GITHUB_MODELS_TOKEN`.
+
+**Groq (fallback)** — free, no credit card, no age-verification gate.
+Get a key at [console.groq.com/keys](https://console.groq.com/keys) and
+set `GROQ_API_KEY`.
+
+**Gemini (last resort)** — only used if neither of the above is set.
+Handles the whole transcript in one call since it has a huge context
+window, but some Google accounts require age verification to use the API.
+
+Both GitHub Models and Groq have modest free-tier throughput (well under
+what a full 2-3 hour WAN Show transcript needs in one request), so
+`src/summarizeGitHubModels.js` / `src/summarizeGroq.js` split the
+transcript into chunks, summarize each into short notes (pacing the
+requests to stay under the limit), then combine those notes into the
+final headline/paragraph. This makes a single run take a few minutes
+rather than seconds; that's expected and fine for a background cron job.
+Tune the pacing with the `*_CHUNK_CHARS` / `*_PACE_MS` env vars if you
+have a higher rate limit.
 
 ## Local setup
 
 ```bash
 npm install
 cp .env.example .env
-# add your free Gemini key from https://aistudio.google.com/apikey to .env
+# For local runs, get a PAT with models:read at
+# https://github.com/settings/personal-access-tokens and set it as
+# GITHUB_MODELS_TOKEN in .env (GITHUB_TOKEN auto-works only inside Actions).
+# Or use GROQ_API_KEY / GEMINI_API_KEY instead — see above.
 npm start
 ```
 
@@ -75,8 +108,10 @@ as a static site.
 
 1. Push this repo to GitHub (public or private — either works within the
    free Actions minutes quota).
-2. **Settings → Secrets and variables → Actions → New repository secret** —
-   add `GEMINI_API_KEY` with your key.
+2. **Settings → Secrets and variables → Actions**: nothing to add here for
+   GitHub Models — it's already covered by the workflow's built-in
+   `GITHUB_TOKEN`. If you'd rather use Groq or Gemini instead, add
+   `GROQ_API_KEY` or `GEMINI_API_KEY` as a repository secret here.
 3. **Settings → Pages** — set Source to "Deploy from a branch", branch
    `main`, folder `/docs`. Save.
 4. **Actions** tab → run the "WAN Show Wallpaper" workflow once manually
