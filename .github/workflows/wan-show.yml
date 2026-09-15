@@ -1,4 +1,4 @@
-name: WAN Show WallpaperV2
+name: WAN Show Wallpaper
 
 on:
   schedule:
@@ -8,22 +8,25 @@ on:
 
 permissions:
   contents: write
+  models: read
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - run: npm ci
 
       - name: Generate latest wallpaper
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # No secret needed — the built-in GITHUB_TOKEN (scoped by the
+          # `models: read` permission above) authenticates GitHub Models.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATA_FILE: ./docs/latest.json
         run: node scripts/generate.mjs
 
