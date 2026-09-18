@@ -5,7 +5,6 @@ export const config = {
   // is still correct at https://www.youtube.com/@LinusTechTips before relying on it.
   channelId: process.env.YT_CHANNEL_ID || 'UCXuqSBlHAE6Xw-yeJA0Tunw',
   geminiApiKey: process.env.GEMINI_API_KEY,
-  youtubeApiKey: process.env.YOUTUBE_API_KEY,
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   groqApiKey: process.env.GROQ_API_KEY,
   groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
