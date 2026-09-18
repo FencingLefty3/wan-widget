@@ -1,54 +1,58 @@
+import { XMLParser } from 'fast-xml-parser';
 import { config } from './config.js';
 
-const SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
+// Free RSS feed, no API key needed. This assumes config.channelId points
+// at a channel where every upload IS a WAN Show episode (e.g. a
+// dedicated WAN Show channel) — so we just take the newest entry rather
+// than filtering by title. If you ever point this at a mixed channel
+// (like the main LTT channel) again, you'll want the YouTube Data API
+// version instead, since RSS only returns the 15 most recent uploads
+// with no way to page further back, and a title filter can miss an
+// episode buried behind unrelated content.
 
-/**
- * Uses the YouTube Data API's search endpoint to find the most recent
- * video on the channel matching "WAN Show". Unlike the RSS feed (capped
- * at the 15 most recent uploads with no way to page further back), this
- * searches the whole channel, so a weekly episode won't get lost behind
- * a burst of unrelated uploads.
- */
+const FEED_URL = (channelId) =>
+  `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+
 export async function findLatestWanShow() {
-  if (!config.youtubeApiKey) {
-    throw new Error('YOUTUBE_API_KEY is not set');
-  }
-
-  const params = new URLSearchParams({
-    key: config.youtubeApiKey,
-    channelId: config.channelId,
-    q: 'WAN Show',
-    type: 'video',
-    order: 'date',
-    maxResults: '5',
-    part: 'snippet',
+  const res = await fetch(FEED_URL(config.channelId), {
+    headers: {
+      // Some automated/datacenter requests get served a stripped or
+      // empty response without a browser-like UA — this avoids that.
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      Accept: 'application/atom+xml,application/xml,text/xml',
+    },
   });
-
-  const res = await fetch(`${SEARCH_URL}?${params}`);
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`YouTube Data API error: ${res.status} ${body}`);
+    throw new Error(`Failed to fetch channel feed: ${res.status} ${res.statusText}`);
+  }
+  const xml = await res.text();
+
+  if (!xml.includes('<feed')) {
+    throw new Error(
+      `Response doesn't look like an Atom feed (got ${xml.length} chars, starts with: ${xml.slice(0, 200).replace(/\s+/g, ' ')})`
+    );
   }
 
-  const data = await res.json();
-  const items = data.items ?? [];
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+  const feed = parser.parse(xml);
+
+  const entries = feed?.feed?.entry;
+  const list = Array.isArray(entries) ? entries : entries ? [entries] : [];
+
   console.log(
-    `[findLatestVideo] Search returned ${items.length} result(s): ${items
-      .map((it) => JSON.stringify(it.snippet?.title))
+    `[findLatestVideo] Parsed ${list.length} feed entries: ${list
+      .map((e) => JSON.stringify(e.title))
       .join(', ')}`
   );
 
-  // Belt-and-suspenders: the API's `q` param is a general text match, not
-  // an exact title filter, so double-check "WAN Show" is actually in the
-  // title before trusting the top result.
-  const wanShow = items.find((it) => /wan show/i.test(it.snippet?.title ?? ''));
-  if (!wanShow) return null;
+  const latest = list[0];
+  if (!latest) return null;
 
-  const videoId = wanShow.id?.videoId;
   return {
-    videoId,
-    title: wanShow.snippet.title,
-    publishedAt: wanShow.snippet.publishedAt,
-    url: `https://www.youtube.com/watch?v=${videoId}`,
+    videoId: latest['yt:videoId'],
+    title: latest.title,
+    publishedAt: latest.published,
+    url: `https://www.youtube.com/watch?v=${latest['yt:videoId']}`,
   };
 }
