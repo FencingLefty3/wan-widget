@@ -6,7 +6,7 @@ import path from 'path';
 
 const execFileAsync = promisify(execFile);
 
-export async function getTranscript(videoId) {
+async function runOnce(videoId) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wan-transcript-'));
   const outputTemplate = path.join(tmpDir, '%(id)s');
   const url = `https://www.youtube.com/watch?v=${videoId}`;
@@ -18,7 +18,7 @@ export async function getTranscript(videoId) {
   }
 
   try {
-    await execFileAsync(
+    const { stdout, stderr } = await execFileAsync(
       'yt-dlp',
       [
         '--write-auto-subs',
@@ -39,7 +39,7 @@ export async function getTranscript(videoId) {
     const vttFile = files.find((f) => f.endsWith('.vtt'));
     if (!vttFile) {
       throw new Error(
-        'yt-dlp ran but produced no subtitle file — captions may not be processed yet for this video, or auto-captions are unavailable.'
+        `yt-dlp ran but produced no subtitle file.\n--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`
       );
     }
 
@@ -48,6 +48,22 @@ export async function getTranscript(videoId) {
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export async function getTranscript(videoId, { retries = 1, retryDelayMs = 15000 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await runOnce(videoId);
+    } catch (err) {
+      lastErr = err;
+      console.error(`[transcript] Attempt ${attempt + 1} failed: ${err.message}`);
+      if (attempt < retries) await sleep(retryDelayMs);
+    }
+  }
+  throw lastErr;
 }
 
 function vttToText(vtt) {
