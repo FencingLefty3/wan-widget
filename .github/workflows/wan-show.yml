@@ -32,10 +32,9 @@ jobs:
 
       - name: Generate latest wallpaper
         env:
-          # No secret needed — the built-in GITHUB_TOKEN (scoped by the
-          # `models: read` permission above) authenticates GitHub Models.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATA_FILE: ./docs/latest.json
         run: node scripts/generate.mjs
 

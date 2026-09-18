@@ -6,8 +6,11 @@ export const config = {
   channelId: process.env.YT_CHANNEL_ID || 'UCVlfe3MRSCZSeIWByrWHhkg',
   geminiApiKey: process.env.GEMINI_API_KEY,
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  openrouterApiKey: process.env.OPENROUTER_API_KEY,
+  openrouterModel: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free',
   groqApiKey: process.env.GROQ_API_KEY,
   groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+  
   // Groq's free tier caps throughput around 12k tokens/minute, so long
   // transcripts get chunked. Keep chunks well under that so each call
   // (chunk + prompt + response) has headroom.
