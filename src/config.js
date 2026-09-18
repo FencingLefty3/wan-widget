@@ -3,6 +3,7 @@ import 'dotenv/config';
 export const config = {
   // Linus Tech Tips main channel (WAN Show is uploaded here). Verify this
   // is still correct at https://www.youtube.com/@LinusTechTips before relying on it.
+  channelId: process.env.YT_CHANNEL_ID || 'UCVlfe3MRSCZSeIWByrWHhkg',
   geminiApiKey: process.env.GEMINI_API_KEY,
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   groqApiKey: process.env.GROQ_API_KEY,
