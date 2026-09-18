@@ -25,13 +25,16 @@ jobs:
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
           sudo chmod a+rx /usr/local/bin/yt-dlp
           yt-dlp --version
-
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - run: npm ci
 
       - name: Generate latest wallpaper
         env:
           # No secret needed — the built-in GITHUB_TOKEN (scoped by the
           # `models: read` permission above) authenticates GitHub Models.
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATA_FILE: ./docs/latest.json
         run: node scripts/generate.mjs

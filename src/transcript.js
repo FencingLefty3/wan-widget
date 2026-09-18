@@ -6,16 +6,16 @@ import path from 'path';
 
 const execFileAsync = promisify(execFile);
 
-// Uses yt-dlp (must be on PATH — see README) instead of an npm scraping
-// library. Unofficial JS libraries like `youtube-transcript` are
-// frequently blocked/misdetected from cloud CI IP ranges (GitHub Actions
-// included), which surfaces as a misleading "captions disabled" error
-// even when the video genuinely has auto-captions. yt-dlp is far better
-// maintained against that kind of anti-bot friction.
 export async function getTranscript(videoId) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wan-transcript-'));
   const outputTemplate = path.join(tmpDir, '%(id)s');
   const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+  let cookiesFile = null;
+  if (process.env.YT_COOKIES) {
+    cookiesFile = path.join(tmpDir, 'cookies.txt');
+    await fs.writeFile(cookiesFile, process.env.YT_COOKIES, 'utf-8');
+  }
 
   try {
     await execFileAsync(
@@ -27,6 +27,7 @@ export async function getTranscript(videoId) {
         'en.*',
         '--sub-format',
         'vtt',
+        ...(cookiesFile ? ['--cookies', cookiesFile] : []),
         '-o',
         outputTemplate,
         url,
@@ -49,9 +50,6 @@ export async function getTranscript(videoId) {
   }
 }
 
-// Auto-generated YouTube captions are "rolling" — each cue repeats part
-// of the previous line as new words scroll in. Skipping consecutive
-// duplicate lines collapses that into clean, non-repeating text.
 function vttToText(vtt) {
   const lines = vtt.split('\n');
   const out = [];
@@ -61,9 +59,9 @@ function vttToText(vtt) {
     if (!trimmed) continue;
     if (trimmed.startsWith('WEBVTT')) continue;
     if (trimmed.startsWith('Kind:') || trimmed.startsWith('Language:')) continue;
-    if (/^\d+$/.test(trimmed)) continue; // cue number
-    if (/-->/.test(trimmed)) continue; // timestamp line
-    const clean = trimmed.replace(/<[^>]+>/g, '').trim(); // strip <00:00:01.234><c> tags
+    if (/^\d+$/.test(trimmed)) continue;
+    if (/-->/.test(trimmed)) continue;
+    const clean = trimmed.replace(/<[^>]+>/g, '').trim();
     if (!clean || clean === lastLine) continue;
     out.push(clean);
     lastLine = clean;
